@@ -101,7 +101,7 @@ def run_build_model(x, y, directory_name):
     known_features = np.argsort(best_conf)[::-1][:3] + 1
 
     heap = []
-    for i in range(100):
+    for i in range(10000):
         shuffle_indexes = get_shuffle(objects_by_class, copy.deepcopy(split_by_class), 40) # get shuffle with specified size
         part_x = x[shuffle_indexes] # x subsample
         part_y = y[shuffle_indexes] # y subsample
@@ -110,10 +110,10 @@ def run_build_model(x, y, directory_name):
         number_of_known_features = len(set(univ_filter.selected_features).intersection(known_features))
         if len(heap) > 0:
             lowest, _ = heapq.nsmallest(1, heap)[0]
-            if len(heap) == 10 and -lowest > number_of_known_features:
+            if len(heap) == 1000 and -lowest > number_of_known_features:
                 heapq.heappop(heap)
                 heapq.heappush(heap, (-number_of_known_features, shuffle_indexes))
-            elif len(heap) < 10:
+            elif len(heap) < 1000:
                 heapq.heappush(heap, (-number_of_known_features, shuffle_indexes))
         else:
             heapq.heappush(heap, (-number_of_known_features, shuffle_indexes))
