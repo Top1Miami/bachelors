@@ -10,7 +10,7 @@ for file_name in os.listdir("datasets"): # open directory with datasets
     with open('datasets/' + file_name, 'r') as fd: # open each file 
         if '.csv' not in file_name: # skip datasets not in csv format
             continue
-        if int(file_name[0]) != 4: # test only on dataset number 4
+        if int(file_name[0]) != 2: # test only on dataset number 4
             continue
         print("started processing : " + file_name) # logging the start of building procedure
         directory_name = file_name[:-4] + 'TablesPlots' # generate the directory for storing results 
