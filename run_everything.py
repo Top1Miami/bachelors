@@ -3,14 +3,14 @@ import os
 from utils import read_and_refactor
 # from build_plots import run_build_plots
 from build_model import run_build_model
-from algorithm import run_and_compare_fs
+# from algorithm import run_and_compare_fs
 from build_model import dump_bad_subsamples
 
 for file_name in os.listdir("datasets"): # open directory with datasets
     with open('datasets/' + file_name, 'r') as fd: # open each file 
         if '.csv' not in file_name: # skip datasets not in csv format
             continue
-        if int(file_name[0]) != 2: # test only on dataset number 4
+        if int(file_name[0]) != 4: # test only on dataset number 4
             continue
         print("started processing : " + file_name) # logging the start of building procedure
         directory_name = file_name[:-4] + 'TablesPlots' # generate the directory for storing results 

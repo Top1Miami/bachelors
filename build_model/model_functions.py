@@ -5,6 +5,7 @@ import random
 from .UnivariateFilter import UnivariateFilter
 import measures
 import heapq
+from sklearn.model_selection import StratifiedShuffleSplit
 
 def __load_cfg(file_number):
     with open('experiments.cfg', 'r') as fd:
@@ -18,7 +19,7 @@ def __load_cfg(file_number):
 def get_top(count_pos, k):
     count_top_k = []
     for i in count_pos:
-        zipped = list(zip(np.arange(1, len(i) + 1, dtype=np.integer), i))
+        zipped = list(zip(np.arange(0, len(i), dtype=np.integer), i))
         count_top_k.append(sorted(zipped, key = lambda t: t[1], reverse = True)[:k])
     return np.array(count_top_k, dtype = np.integer)
 
@@ -67,7 +68,7 @@ def run_build_model(x, y, directory_name):
     range_list = __load_cfg(file_number)
     
     objects_by_class = np.histogram(y, bins=max(y) + 1)[0] / len(y) # building histogram for counting objects by class distribution
-    split_by_class = split_by(y)# samples split by class labels
+    split_by_class = split_by(y) # samples split by class labels
     class_number = max(y) # getting class size
     feature_number = x.shape[1] # number of features
 
@@ -77,10 +78,11 @@ def run_build_model(x, y, directory_name):
     count_pos_10 = np.zeros((len(range_list), feature_number))
     count_pos_30 = np.zeros((len(range_list), feature_number))
     
+    #TODO add stratified KFold
     number_of_shuffles = 50 # number of top feature calculation
-    for i in range(number_of_shuffles):
-        for slice_index, slice_size in enumerate(range_list):
-            shuffle_indexes = get_shuffle(objects_by_class, copy.deepcopy(split_by_class), slice_size) # get shuffle with specified size
+    for slice_index, slice_size in enumerate(range_list):
+        shuffler = StratifiedShuffleSplit(number_of_shuffles, test_size=slice_size, random_state=0)
+        for _, shuffle_indexes in shuffler.split(x, y):
             part_x, part_y = x[shuffle_indexes], y[shuffle_indexes] # x, y subsample
             select_best(count_pos_3, 3, part_x, part_y, slice_index) # select 3 best features
             select_best(count_pos_10, 10, part_x, part_y, slice_index) # select 10 best features
@@ -98,25 +100,26 @@ def run_build_model(x, y, directory_name):
     for i in range(len(conf_by_slice)):
         for j in range(0, 5):
             best_conf[conf_by_slice[i][j][0] - 1] += 1
-    known_features = np.argsort(best_conf)[::-1][:3] + 1
 
-    heap = []
-    for i in range(10000):
-        shuffle_indexes = get_shuffle(objects_by_class, copy.deepcopy(split_by_class), 40) # get shuffle with specified size
-        part_x = x[shuffle_indexes] # x subsample
-        part_y = y[shuffle_indexes] # y subsample
-        univ_filter = UnivariateFilter(measures.pearson_corr, measures.select_k_best(30)) # create univariative filter with cutting rule 10 best
-        univ_filter.fit(part_x, part_y) # fit the feature ranking model
-        number_of_known_features = len(set(univ_filter.selected_features).intersection(known_features))
-        if len(heap) > 0:
-            lowest, _ = heapq.nsmallest(1, heap)[0]
-            if len(heap) == 10 and -lowest > number_of_known_features:
-                heapq.heappop(heap)
-                heapq.heappush(heap, (-number_of_known_features, shuffle_indexes))
-            elif len(heap) < 10:
-                heapq.heappush(heap, (-number_of_known_features, shuffle_indexes))
-        else:
-            heapq.heappush(heap, (-number_of_known_features, shuffle_indexes))
+    known_features = np.argsort(best_conf)[::-1][:3]
     good_features = list(set(count_top_30[count_top_30.shape[0] - 1][:, 0].ravel()).difference(set(known_features)))
+    
+    heap = []
+    # shuffler = StratifiedShuffleSplit(1000, test_size=slice_size, random_state=0)
+    # for _, shuffle_indexes in shuffler.split(x, y):
+    #     part_x = x[shuffle_indexes] # x subsample
+    #     part_y = y[shuffle_indexes] # y subsample
+    #     univ_filter = UnivariateFilter(measures.pearson_corr, measures.select_k_best(30)) # create univariative filter with cutting rule 10 best
+    #     univ_filter.fit(part_x, part_y) # fit the feature ranking model
+    #     number_of_known_features = len(set(univ_filter.selected_features).intersection(known_features))
+    #     if len(heap) > 0:
+    #         lowest, _ = heapq.nsmallest(1, heap)[0]
+    #         if len(heap) == 10 and -lowest > number_of_known_features:
+    #             heapq.heappop(heap)
+    #             heapq.heappush(heap, (-number_of_known_features, shuffle_indexes))
+    #         elif len(heap) < 10:
+    #             heapq.heappush(heap, (-number_of_known_features, shuffle_indexes))
+    #     else:
+    #         heapq.heappush(heap, (-number_of_known_features, shuffle_indexes))
     return heap, known_features, good_features
-
+    
