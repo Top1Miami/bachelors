@@ -6,6 +6,7 @@ from .UnivariateFilter import UnivariateFilter
 import measures
 import heapq
 from sklearn.model_selection import StratifiedShuffleSplit
+from ITMO_FS.filters.univariate.measures import information_gain
 
 def __load_cfg(file_number):
     with open('experiments.cfg', 'r') as fd:
@@ -24,7 +25,7 @@ def get_top(count_pos, k):
     return np.array(count_top_k, dtype = np.integer)
 
 def select_best(count_pos, k, part_x, part_y, slice_index):
-    univ_filter = UnivariateFilter(measures.pearson_corr, measures.select_k_best(k))
+    univ_filter = UnivariateFilter(information_gain, measures.select_k_best(k))
     univ_filter.fit(part_x, part_y)
     sf = univ_filter.selected_features
     for f in sf:
@@ -66,7 +67,7 @@ def split_by(y):
 def run_build_model(x, y, directory_name):
     file_number = int(directory_name[0])
     range_list = __load_cfg(file_number)
-    
+    print('cfg loaded')
     objects_by_class = np.histogram(y, bins=max(y) + 1)[0] / len(y) # building histogram for counting objects by class distribution
     split_by_class = split_by(y) # samples split by class labels
     class_number = max(y) # getting class size
@@ -77,31 +78,35 @@ def run_build_model(x, y, directory_name):
     count_pos_3 = np.zeros((len(range_list), feature_number)) # initilizing tables for top feature storing
     count_pos_10 = np.zeros((len(range_list), feature_number))
     count_pos_30 = np.zeros((len(range_list), feature_number))
-    
+    print('counters initialized')
     #TODO add stratified KFold
     number_of_shuffles = 50 # number of top feature calculation
     for slice_index, slice_size in enumerate(range_list):
+        print('slice compiled', slice_size)
         shuffler = StratifiedShuffleSplit(number_of_shuffles, test_size=slice_size, random_state=0)
         for _, shuffle_indexes in shuffler.split(x, y):
             part_x, part_y = x[shuffle_indexes], y[shuffle_indexes] # x, y subsample
             select_best(count_pos_3, 3, part_x, part_y, slice_index) # select 3 best features
             select_best(count_pos_10, 10, part_x, part_y, slice_index) # select 10 best features
             select_best(count_pos_30, 30, part_x, part_y, slice_index) # select 30 best features
-    
+    print('counters completed')
     count_top_3 = get_top(count_pos_3, 3) # sort and cut 3 best by number of occurances 
     count_top_10 = get_top(count_pos_10, 10) # sort and cut 10 best by number of occurances 
     count_top_30 = get_top(count_pos_30, 30) # sort and cut 30 best by number of occurances 
     
+    print('html started')
     conf_by_slice = [count_confidence(count_top_3[i], count_top_10[i], count_top_30[i], number_of_shuffles) for i in range(len(range_list))]# count confidence for slices
     
     html_print(html, count_top_3, count_top_10, count_top_30, conf_by_slice, range_list)# print html
 
-    best_conf = np.zeros(feature_number, dtype=np.integer)
-    for i in range(len(conf_by_slice)):
-        for j in range(0, 5):
-            best_conf[conf_by_slice[i][j][0] - 1] += 1
+    print('html written')
+    # best_conf = np.zeros(feature_number, dtype=np.integer)
+    # for i in range(len(conf_by_slice)):
+    #     for j in range(0, 5):
+    #         best_conf[conf_by_slice[i][j][0] - 1] += 1
 
-    known_features = np.argsort(best_conf)[::-1][:3]
+    # known_features = np.argsort(best_conf)[::-1][:3]
+    known_features = []
     good_features = list(set(count_top_30[count_top_30.shape[0] - 1][:, 0].ravel()).difference(set(known_features)))
     
     heap = []

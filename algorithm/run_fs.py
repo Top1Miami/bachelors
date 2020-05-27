@@ -43,26 +43,26 @@ def compare_with_greedy(part_x, part_y, known_features, good_features, kernel_pa
 
 def run_greedy(part_x, part_y, known_features, good_features):
     kernel_parameters = []
-    # for degree in range(1, 40):
-    #     for coef in range(1, 10):
-    #         coef0 = float(coef) / 10     
-    #         for nu in range(1, 10):
-    #             nu0 = float(nu) / 100
-    #             kernel_parameters.append('poly ' + str(degree) + ' ' + str(coef0) + ' ' + str(nu0) + ' scale')
-    #             kernel_parameters.append('poly ' + str(degree) + ' ' + str(coef0) + ' ' + str(nu0) + ' auto')
-    #     for coef in range(2, 10):
-    #         for nu in range(1, 10):
-    #             nu0 = float(nu) / 100
-    #             kernel_parameters.append('poly ' + str(degree) + ' ' + str(coef) + ' ' + str(nu0) + ' scale')
-    #             kernel_parameters.append('poly ' + str(degree) + ' ' + str(coef) + ' ' + str(nu0) + ' auto')
+    for degree in range(1, 40):
+        for coef in range(1, 10):
+            coef0 = float(coef) / 10     
+            for nu in range(1, 10):
+                nu0 = float(nu) / 100
+                kernel_parameters.append('poly ' + str(degree) + ' ' + str(coef0) + ' ' + str(nu0) + ' scale')
+                kernel_parameters.append('poly ' + str(degree) + ' ' + str(coef0) + ' ' + str(nu0) + ' auto')
+        for coef in range(2, 10):
+            for nu in range(1, 10):
+                nu0 = float(nu) / 100
+                kernel_parameters.append('poly ' + str(degree) + ' ' + str(coef) + ' ' + str(nu0) + ' scale')
+                kernel_parameters.append('poly ' + str(degree) + ' ' + str(coef) + ' ' + str(nu0) + ' auto')
 
 
-    # for coef in range(1, 10000):
-    #     coef0 = float(coef) / 100    
-    #     for nu in range(1, 100):
-    #         nu0 = float(nu) / 100
-    #         kernel_parameters.append('sigmoid ' + str(coef0) + ' ' + str(nu0) + ' scale')
-    #         kernel_parameters.append('sigmoid ' + str(coef0) + ' ' + str(nu0) + ' auto')
+    for coef in range(1, 10000):
+        coef0 = float(coef) / 100    
+        for nu in range(1, 100):
+            nu0 = float(nu) / 100
+            kernel_parameters.append('sigmoid ' + str(coef0) + ' ' + str(nu0) + ' scale')
+            kernel_parameters.append('sigmoid ' + str(coef0) + ' ' + str(nu0) + ' auto')
     for coef in range(100, 1000):
         for nu in range(1, 100):
             coef0 = float(coef) / 100

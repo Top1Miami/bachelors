@@ -29,5 +29,13 @@ class SemiSupFS(object):
     def run(self, x, known_features):
         train_set = x[:, known_features].T
         self.clf.fit(train_set)
+        mapping = {}
+        j = 0
+        for i in range(x.shape[1]):
+            if i not in known_features:
+                mapping[j] = i
+                j += 1
         test_set = np.delete(x, known_features, axis=1)
-        self.selected_features = self.clf.predict(test_set.T)
+        feature_labels = self.clf.predict(test_set.T)
+        selected_features = [i for i in range(len(feature_labels)) if feature_labels[i] == 1]
+        self.selected_features = [mapping[i] for i in selected_features]
