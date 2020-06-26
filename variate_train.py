@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import random
 import csv
 from collections import defaultdict
 from math import log
@@ -96,18 +97,39 @@ def methodology_test(X, y, good_features, number_of_test, scores, k):
 
     for feature_train, feature_test in feature_split.split(X.T, feature_marks):
         
-        train_mapping = {i:f for i, f in enumerate(feature_train)}
-        test_mapping = {i:f for i, f in enumerate(feature_test)}
+        feature_train_good = [f for f in feature_train if f in good_features]
+        feature_test_good = [f for f in feature_test if f in good_features]
+        
+        good_train_samp = random.sample(feature_train_good, k)
+        good_test_samp = random.sample(feature_test_good, 3)
+
+        # print('good features train', feature_train_good)
+        # print('good features train sampled', good_train_samp)
+
+        # print('good features test', feature_test_good)
+        # print('good features test sampled', good_test_samp)
+        # print(sorted(feature_train))
+        # print(sorted(feature_train_good))
+        feature_train_del = np.setdiff1d(feature_train, feature_train_good)
+        # print('confirm deletion', set(feature_train_del).intersection(set(feature_train_good)))
+        feature_train_fin = np.append(feature_train_del, good_train_samp)
+        # print('confirm append', set(feature_train_fin).intersection(set(good_train_samp)))
+
+        feature_test_del = np.setdiff1d(feature_test, feature_test_good)
+        feature_test_fin = np.append(feature_test_del, good_test_samp)
+
+        train_mapping = {i:f for i, f in enumerate(feature_train_fin)}
+        test_mapping = {i:f for i, f in enumerate(feature_test_fin)}
         
         sample_split = StratifiedKFold(5)
         
         for sample_train, sample_test in sample_split.split(X, y):
             print('new test number:', number_of_test)
             
-            X_ftrain = X[:, feature_train]
-            X_ftest = X[:, feature_test]
-            good_features_test = [value for value in test_mapping.values() if value in good_features]
-            good_features_train = [value for value in train_mapping.values() if value in good_features]
+            X_ftrain = X[:, feature_train_fin]
+            X_ftest = X[:, feature_test_fin]
+            # good_features_test = [value for value in test_mapping.values() if value in good_features]
+            # good_features_train = [value for value in train_mapping.values() if value in good_features]
 
             # train and test melif on recall
             # score_train_rec = partial(loss_rec, good_features=good_features, mapping=train_mapping)
@@ -125,9 +147,9 @@ def methodology_test(X, y, good_features, number_of_test, scores, k):
             score_test_prec = partial(loss_prec, good_features=good_features, mapping=test_mapping)
             
             melif_prec = MelifLossF(filters, score_train_prec)
-            melif_prec.fit(X_ftrain[sample_train], y[sample_train], select_k_best(24), delta=delta, points=ParameterGrid(param_grid))
+            melif_prec.fit(X_ftrain[sample_train], y[sample_train], select_k_best(k), delta=delta, points=ParameterGrid(param_grid))
             melif_prec.run()
-            feat_prec = melif_prec.transform(X_ftest[sample_train], y[sample_train], select_k_best(k))
+            feat_prec = melif_prec.transform(X_ftest[sample_train], y[sample_train], select_k_best(3))
             sel_prec = [test_mapping[f] for f in feat_prec]
             good_prec = [test_mapping[f] for f in feat_prec if test_mapping[f] in good_features]
 
@@ -156,16 +178,16 @@ def methodology_test(X, y, good_features, number_of_test, scores, k):
             # train casual melif
             score = f1_score
             melif = Melif(filters, score)
-            melif.fit(X_ftrain[sample_train], y[sample_train], estimator, select_k_best(24), X_ftrain[sample_test], y[sample_test], delta=delta, points=ParameterGrid(param_grid))
+            melif.fit(X_ftrain[sample_train], y[sample_train], estimator, select_k_best(k), X_ftrain[sample_test], y[sample_test], delta=delta, points=ParameterGrid(param_grid))
             melif.run()
-            feat_m = melif.transform(X_ftest[sample_train], y[sample_train], select_k_best(k))
+            feat_m = melif.transform(X_ftest[sample_train], y[sample_train], select_k_best(3))
             sel_m = [test_mapping[f] for f in feat_m]
             good_m = [test_mapping[f] for f in feat_m if test_mapping[f] in good_features]
 
             # train melif straight on test features
             score = f1_score
             melif_test = Melif(filters, score)
-            melif_test.fit(X_ftest[sample_train], y[sample_train], estimator, select_k_best(k), X_ftest[sample_test], y[sample_test], delta=delta, points=ParameterGrid(param_grid))
+            melif_test.fit(X_ftest[sample_train], y[sample_train], estimator, select_k_best(3), X_ftest[sample_test], y[sample_test], delta=delta, points=ParameterGrid(param_grid))
             feat_test = melif_test.run()
             sel_test = [test_mapping[f] for f in feat_test]
             good_test = [test_mapping[f] for f in feat_test if test_mapping[f] in good_features]            
@@ -198,7 +220,7 @@ for number in range(1, 7):
     [256, 321, 66, 517, 326, 138, 398, 784, 403, 916, 83, 534, 851, 380, 40, 169, 681, 937, 744, 362, 46, 876, 560, 561, 945, 117, 376, 315, 60, 190], # dataset 5 su measure
     [1, 4, 5, 6, 8, 9, 73, 13, 14, 16, 17, 18, 19, 24, 25, 88, 89, 90, 29, 94, 98, 101, 102, 103, 104, 105, 106, 45, 46]]) # dataset 6 su measure
     subsample_size = 70
-    select_k_number = list(range(1, 7)) 
+    select_k_number = list(range(10, 24)) 
     with open(str(number) + 'TablesPlots/shuffled.csv', 'r') as fd: # open each file 
         sns.set(style="darkgrid")
         X, y = read_subsamples(fd)
@@ -212,25 +234,25 @@ for number in range(1, 7):
             for k in select_k_number:
                 number_of_test = methodology_test(sub_x, sub_y, good_features[number - 1], number_of_test, scores, k)
         
-        dump_points = open(str(number) + 'TablesPlots/dump_points.txt', 'w')
+        dump_points = open(str(number) + 'TablesPlots/dump_points_variate.txt', 'w')
         dump_points.write(str(len(scores)) + ' ' + str(len(scores[0])))
         for i in range(len(scores)):
             for j in range(len(scores[i])):
                 dump_points.write(str(scores[i][j]) + ' ')
             dump_points.write('\n')
         
-        df1 = pd.DataFrame(data=scores, index=range(len(scores)), columns=["полнота", "точность", "отсекающее правило", "функция потерь"])
-        sns.lineplot(x="отсекающее правило", y="точность",
+        df1 = pd.DataFrame(data=scores, index=range(len(scores)), columns=["полнота", "точность", "число тренировочных признаков", "функция потерь"])
+        sns.lineplot(x="число тренировочных признаков", y="точность",
                  hue="функция потерь",
                  data=df1)
-        plt.savefig(str(number) + 'TablesPlots/scores_prec.png')
+        plt.savefig(str(number) + 'TablesPlots/scores_prec_variate.png')
         plt.close()
         
-        df2 = pd.DataFrame(data=scores, index=range(len(scores)), columns=["полнота", "точность", "отсекающее правило", "функция потерь"])
-        sns.lineplot(x="отсекающее правило", y="полнота",
+        df2 = pd.DataFrame(data=scores, index=range(len(scores)), columns=["полнота", "точность", "число тренировочных признаков", "функция потерь"])
+        sns.lineplot(x="число тренировочных признаков", y="полнота",
                  hue="функция потерь",
                  data=df2)
-        plt.savefig(str(number) + 'TablesPlots/scores_rec.png')
+        plt.savefig(str(number) + 'TablesPlots/scores_rec_variate.png')
         plt.close()
 
 

@@ -21,12 +21,71 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import ParameterGrid
 from sklearn.metrics import recall_score, precision_score
 from sklearn.feature_selection import mutual_info_classif
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pandas as pd
+
+def __write_pre(html, headers):
+    html.write("<!DOCTYPE html>")
+    html.write("<head>")
+    html.write("<meta charset=\"UTF-8\">")
+    html.write("<title>Title</title>")
+    html.write("<style>")
+    html.write(".tableHeader, .headerElement { padding: 3px; border: 1px solid black; }")
+    html.write(".mainTable { border-collapse: collapse; width: 1400px; }")
+    html.write(".topElement { list-style-type: none; }")
+    html.write("</style>")
+    html.write("</head>")
+    html.write("<body>")
+    html.write("<table class = \"mainTable\">")
+    html.write("<tr class=\"tableHeader\">")
+    for i in headers:
+        html.write("<th class = \"headerElement\">" + i + "</th>")
+    html.write("</tr>")
+
+def __write_row(html, number_of_test, good_features_train, good_features_test, goods, best_points, scores):
+    html.write("<tr class = \"tableRow\">")
+    html.write("<td class = \"tableHeader\">" + str(number_of_test) + "</td>")
+
+    html.write("<td class = \"tableHeader\">")
+    html.write("<ul class = \"topList\">")
+    for f in sorted(good_features_train):
+        html.write("<li class = \"topElement\">" + str(f) + "</li>")
+    html.write("</ul>")
+    html.write("</td>")
+
+    html.write("<td class = \"tableHeader\">")
+    html.write("<ul class = \"topList\">")
+    for f in sorted(good_features_test):
+        html.write("<li class = \"topElement\">" + str(f) + "</li>")
+    html.write("</ul>")
+    html.write("</td>")    
+
+    for i in range(len(goods)):
+        html.write("<td class = \"tableHeader\">")
+        html.write("<ul class = \"topList\">")
+        for f in goods[i]:
+            html.write("<li class = \"topElement\">" + str(f) + "</li>")
+        html.write("</ul>")
+        html.write("</td>")
+
+        html.write("<td class = \"tableHeader\">")
+        html.write("<ul class = \"topList\">")
+        for c in best_points[i]:
+            html.write("<li class = \"topElement\">" + str(round(c, 1)) + "</li>")
+        html.write("</ul>")
+        html.write("</td>")
+
+        html.write("<td class = \"tableHeader\">" + str(round(scores[i][0], 2)) + ', ' + str(round(scores[i][1], 2)) + "</td>")
+
+    html.write("</tr>")
+
+def __write_post(html):
+    html.write("</table>")
+    html.write("</body>")
+    html.write("</html>")       
 
 starting_list = [0.1, 0.5, 1.0]
 starting_dict = {i:starting_list for i in range(0, len(GLOB_MEASURE))}
+subsample_size = 70
+select_k_number = 6
 
 def loss_2phase(selected_features, good_features, mapping, to_print=False):
     f_true = np.zeros(len(mapping))
@@ -85,7 +144,7 @@ def loss_jaccard(selected_features, good_features, mapping, to_print=False):
 def loss_f1(selected_features, good_features, mapping, to_print=False):
     return common_loss(selected_features, good_features, mapping, f1_score, to_print=to_print)       
 
-def methodology_test(X, y, good_features, number_of_test, scores, k):
+def methodology_test(X, y, good_features, other_good, number_of_test):
     feature_split = StratifiedKFold(5, shuffle=True)
     feature_marks = feature_mask(X.shape[1], good_features)
 
@@ -96,8 +155,12 @@ def methodology_test(X, y, good_features, number_of_test, scores, k):
 
     for feature_train, feature_test in feature_split.split(X.T, feature_marks):
         
+        other_good_train = [f for f in feature_train if f in other_good]
+        other_good_test = [f for f in feature_test if f in other_good]
+        feature_test_cut = [f for f in feature_test if f not in good_features]
+
         train_mapping = {i:f for i, f in enumerate(feature_train)}
-        test_mapping = {i:f for i, f in enumerate(feature_test)}
+        test_mapping = {i:f for i, f in enumerate(feature_test_cut)}
         
         sample_split = StratifiedKFold(5)
         
@@ -105,88 +168,25 @@ def methodology_test(X, y, good_features, number_of_test, scores, k):
             print('new test number:', number_of_test)
             
             X_ftrain = X[:, feature_train]
-            X_ftest = X[:, feature_test]
+            X_ftest = X[:, feature_test_cut]
             good_features_test = [value for value in test_mapping.values() if value in good_features]
             good_features_train = [value for value in train_mapping.values() if value in good_features]
 
-            # train and test melif on recall
-            # score_train_rec = partial(loss_rec, good_features=good_features, mapping=train_mapping)
-            # score_test_rec = partial(loss_rec, good_features=good_features, mapping=test_mapping)
-
-            # melif_rec = MelifLossF(filters, score_train_rec)
-            # melif_rec.fit(X_ftrain[sample_train], y[sample_train], select_k_best(24), delta=delta, points=ParameterGrid(param_grid))
-            # melif_rec.run()
-            # feat_rec = melif_rec.transform(X_ftest[sample_train], y[sample_train], select_k_best(k))
-            # sel_rec = [test_mapping[f] for f in feat_rec]
-            # good_rec = [test_mapping[f] for f in feat_rec if test_mapping[f] in good_features]
-
-            # train and test melif on precision
             score_train_prec = partial(loss_prec, good_features=good_features, mapping=train_mapping)
             score_test_prec = partial(loss_prec, good_features=good_features, mapping=test_mapping)
             
             melif_prec = MelifLossF(filters, score_train_prec)
             melif_prec.fit(X_ftrain[sample_train], y[sample_train], select_k_best(24), delta=delta, points=ParameterGrid(param_grid))
             melif_prec.run()
-            feat_prec = melif_prec.transform(X_ftest[sample_train], y[sample_train], select_k_best(k))
+            feat_prec = melif_prec.transform(X_ftest[sample_train], y[sample_train], select_k_best(6))
             sel_prec = [test_mapping[f] for f in feat_prec]
             good_prec = [test_mapping[f] for f in feat_prec if test_mapping[f] in good_features]
 
-            # train and test melif on f1 score            
-            # score_train_f1 = partial(loss_f1, good_features=good_features, mapping=train_mapping)
-            # score_test_f1 = partial(loss_f1, good_features=good_features, mapping=test_mapping)
+            score_test_2phase = partial(loss_2phase, good_features=other_good_test, mapping=test_mapping)
+            print('selected features', sorted(sel_prec))
+            print('other from top', sorted(other_good_test))
+            print('recall and precision', score_test_2phase(feat_prec))
             
-            # melif_f1 = MelifLossF(filters, score_train_f1)
-            # melif_f1.fit(X_ftrain[sample_train], y[sample_train], select_k_best(24), delta=delta, points=ParameterGrid(param_grid))
-            # melif_f1.run()
-            # feat_f1 = melif_f1.transform(X_ftest[sample_train], y[sample_train], select_k_best(k))
-            # sel_f1 = [test_mapping[f] for f in feat_f1]
-            # good_f1 = [test_mapping[f] for f in feat_f1 if test_mapping[f] in good_features]
-
-            # # train and test melif on 2phase
-            # score_train_2phase = partial(loss_2phase, good_features=good_features, mapping=train_mapping)
-            score_test_2phase = partial(loss_2phase, good_features=good_features, mapping=test_mapping)
-            
-            # melif_2phase = Melif2Phase(filters, score_train_2phase)
-            # melif_2phase.fit(X_ftrain[sample_train], y[sample_train], select_k_best(24), delta=delta, points=ParameterGrid(param_grid))
-            # melif_2phase.run()
-            # feat_2phase = melif_2phase.transform(X_ftest[sample_train], y[sample_train], select_k_best(k))
-            # sel_2phase = [test_mapping[f] for f in feat_2phase]
-            # good_2phase = [test_mapping[f] for f in feat_2phase if test_mapping[f] in good_features]
-
-            # train casual melif
-            score = f1_score
-            melif = Melif(filters, score)
-            melif.fit(X_ftrain[sample_train], y[sample_train], estimator, select_k_best(24), X_ftrain[sample_test], y[sample_test], delta=delta, points=ParameterGrid(param_grid))
-            melif.run()
-            feat_m = melif.transform(X_ftest[sample_train], y[sample_train], select_k_best(k))
-            sel_m = [test_mapping[f] for f in feat_m]
-            good_m = [test_mapping[f] for f in feat_m if test_mapping[f] in good_features]
-
-            # train melif straight on test features
-            score = f1_score
-            melif_test = Melif(filters, score)
-            melif_test.fit(X_ftest[sample_train], y[sample_train], estimator, select_k_best(k), X_ftest[sample_test], y[sample_test], delta=delta, points=ParameterGrid(param_grid))
-            feat_test = melif_test.run()
-            sel_test = [test_mapping[f] for f in feat_test]
-            good_test = [test_mapping[f] for f in feat_test if test_mapping[f] in good_features]            
-            
-            # goods = [sel_rec, sel_prec, sel_f1, sel_2phase, sel_m]
-            # best_points = [melif_rec.best_point, melif_prec.best_point, melif_f1.best_point, melif_2phase.best_point, melif.best_point]
-            # scores = [score_test_2phase(feat_rec), score_test_2phase(feat_prec), score_test_2phase(feat_f1), score_test_2phase(feat_2phase), score_test_2phase(feat_m)]
-
-            # rec_rec, prec_rec = score_test_2phase(feat_rec)
-            # scores.append([rec_rec, prec_rec, k, 'recall'])
-            rec_prec, prec_prec = score_test_2phase(feat_prec)
-            scores.append([rec_prec, prec_prec, k, 'точность'])
-            # rec_f1, prec_f1 = score_test_2phase(feat_f1)
-            # scores.append([rec_f1, prec_f1, k, 'f1_feature'])
-            # rec_2phase, prec_2phase = score_test_2phase(feat_2phase)
-            # scores.append([rec_2phase, prec_2phase, k, '2phase'])
-            rec_m, prec_m = score_test_2phase(feat_m)
-            scores.append([rec_m, prec_m, k, 'ф1 мера на объектах'])
-            rec_test, prec_test = score_test_2phase(feat_test)
-            scores.append([rec_test, prec_test, k, 'на тестовых признаках'])
-
             number_of_test += 1
     return number_of_test
 
@@ -198,40 +198,21 @@ for number in range(1, 7):
     [256, 321, 66, 517, 326, 138, 398, 784, 403, 916, 83, 534, 851, 380, 40, 169, 681, 937, 744, 362, 46, 876, 560, 561, 945, 117, 376, 315, 60, 190], # dataset 5 su measure
     [1, 4, 5, 6, 8, 9, 73, 13, 14, 16, 17, 18, 19, 24, 25, 88, 89, 90, 29, 94, 98, 101, 102, 103, 104, 105, 106, 45, 46]]) # dataset 6 su measure
     subsample_size = 70
-    select_k_number = list(range(1, 7)) 
     with open(str(number) + 'TablesPlots/shuffled.csv', 'r') as fd: # open each file 
-        sns.set(style="darkgrid")
         X, y = read_subsamples(fd)
+
+        univ_filter = UnivariateFilter(su_measure, select_k_best(50))
+        univ_filter.fit(X, y)
+
+        other_good = set(univ_filter.selected_features).difference(set(good_features[number - 1]))
+        print('other than good', other_good)
         directory_name = str(number) + 'TablesPlots/subsamples_melif' # generate the directory for storing results
         subsamples = create_subsamples(directory_name, X, y, subsample_size, 5)
         print('subsamples', len(subsamples))
         number_of_test = 1
-        scores = []
         for sub_x, sub_y in subsamples:
             print('new subset')
-            for k in select_k_number:
-                number_of_test = methodology_test(sub_x, sub_y, good_features[number - 1], number_of_test, scores, k)
-        
-        dump_points = open(str(number) + 'TablesPlots/dump_points.txt', 'w')
-        dump_points.write(str(len(scores)) + ' ' + str(len(scores[0])))
-        for i in range(len(scores)):
-            for j in range(len(scores[i])):
-                dump_points.write(str(scores[i][j]) + ' ')
-            dump_points.write('\n')
-        
-        df1 = pd.DataFrame(data=scores, index=range(len(scores)), columns=["полнота", "точность", "отсекающее правило", "функция потерь"])
-        sns.lineplot(x="отсекающее правило", y="точность",
-                 hue="функция потерь",
-                 data=df1)
-        plt.savefig(str(number) + 'TablesPlots/scores_prec.png')
-        plt.close()
-        
-        df2 = pd.DataFrame(data=scores, index=range(len(scores)), columns=["полнота", "точность", "отсекающее правило", "функция потерь"])
-        sns.lineplot(x="отсекающее правило", y="полнота",
-                 hue="функция потерь",
-                 data=df2)
-        plt.savefig(str(number) + 'TablesPlots/scores_rec.png')
-        plt.close()
+            number_of_test = methodology_test(sub_x, sub_y, good_features[number - 1], other_good, number_of_test)
 
 
 

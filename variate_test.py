@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import random
 import csv
 from collections import defaultdict
 from math import log
@@ -96,8 +97,29 @@ def methodology_test(X, y, good_features, number_of_test, scores, k):
 
     for feature_train, feature_test in feature_split.split(X.T, feature_marks):
         
+        feature_train_good = [f for f in feature_train if f in good_features]
+        feature_test_good = [f for f in feature_test if f in good_features]
+        
+        # good_train_samp = random.sample(feature_train_good, k)
+        good_test_samp = random.sample(feature_test_good, k)
+
+        # print('good features train', feature_train_good)
+        # print('good features train sampled', good_train_samp)
+
+        # print('good features test', feature_test_good)
+        # print('good features test sampled', good_test_samp)
+        # print(sorted(feature_train))
+        # print(sorted(feature_train_good))
+        # feature_train_del = np.setdiff1d(feature_train, feature_train_good)
+        # print('confirm deletion', set(feature_train_del).intersection(set(feature_train_good)))
+        # feature_train_fin = np.append(feature_train_del, good_train_samp)
+        # print('confirm append', set(feature_train_fin).intersection(set(good_train_samp)))
+
+        feature_test_del = np.setdiff1d(feature_test, feature_test_good)
+        feature_test_fin = np.append(feature_test_del, good_test_samp)
+
         train_mapping = {i:f for i, f in enumerate(feature_train)}
-        test_mapping = {i:f for i, f in enumerate(feature_test)}
+        test_mapping = {i:f for i, f in enumerate(feature_test_fin)}
         
         sample_split = StratifiedKFold(5)
         
@@ -105,9 +127,9 @@ def methodology_test(X, y, good_features, number_of_test, scores, k):
             print('new test number:', number_of_test)
             
             X_ftrain = X[:, feature_train]
-            X_ftest = X[:, feature_test]
-            good_features_test = [value for value in test_mapping.values() if value in good_features]
-            good_features_train = [value for value in train_mapping.values() if value in good_features]
+            X_ftest = X[:, feature_test_fin]
+            # good_features_test = [value for value in test_mapping.values() if value in good_features]
+            # good_features_train = [value for value in train_mapping.values() if value in good_features]
 
             # train and test melif on recall
             # score_train_rec = partial(loss_rec, good_features=good_features, mapping=train_mapping)
@@ -190,13 +212,13 @@ def methodology_test(X, y, good_features, number_of_test, scores, k):
             number_of_test += 1
     return number_of_test
 
-for number in range(1, 7):
+for number in range(6, 7):
     good_features = np.array([[64, 193, 194, 453, 455, 458, 203, 463, 336, 338, 24, 281, 153, 344, 472, 347, 475, 415, 35, 169, 105, 493, 378, 433, 50, 241, 442, 443, 318, 319], # dataset 1 su measure
     [128, 576, 386, 643, 899, 195, 712, 521, 15, 849, 274, 854, 664, 793, 345, 414, 287, 868, 486, 745, 621, 622, 239, 114, 819, 374, 248, 570, 251, 764], # dataset 2 su measure
     [576, 577, 324, 521, 266, 267, 268, 269, 522, 459, 460, 402, 211, 598, 351, 352, 549, 296, 431, 239, 240, 241, 379, 181, 374, 377, 378, 571, 572, 318], # dataset 3 su measure
     [64, 195, 197, 70, 74, 76, 83, 212, 85, 216, 26, 28, 158, 162, 163, 228, 229, 102, 232, 106, 237, 50, 178, 52, 252, 183, 185, 124, 254, 191], # dataset 4 su measure
     [256, 321, 66, 517, 326, 138, 398, 784, 403, 916, 83, 534, 851, 380, 40, 169, 681, 937, 744, 362, 46, 876, 560, 561, 945, 117, 376, 315, 60, 190], # dataset 5 su measure
-    [1, 4, 5, 6, 8, 9, 73, 13, 14, 16, 17, 18, 19, 24, 25, 88, 89, 90, 29, 94, 98, 101, 102, 103, 104, 105, 106, 45, 46]]) # dataset 6 su measure
+    [1, 4, 5, 6, 7, 8, 9, 73, 13, 14, 16, 17, 18, 19, 24, 25, 88, 89, 90, 29, 94, 98, 101, 102, 103, 104, 105, 106, 45, 46]]) # dataset 6 su measure
     subsample_size = 70
     select_k_number = list(range(1, 7)) 
     with open(str(number) + 'TablesPlots/shuffled.csv', 'r') as fd: # open each file 
@@ -212,25 +234,29 @@ for number in range(1, 7):
             for k in select_k_number:
                 number_of_test = methodology_test(sub_x, sub_y, good_features[number - 1], number_of_test, scores, k)
         
-        dump_points = open(str(number) + 'TablesPlots/dump_points.txt', 'w')
+        dump_points = open(str(number) + 'TablesPlots/dump_points_variate_test.txt', 'w')
         dump_points.write(str(len(scores)) + ' ' + str(len(scores[0])))
         for i in range(len(scores)):
             for j in range(len(scores[i])):
                 dump_points.write(str(scores[i][j]) + ' ')
             dump_points.write('\n')
-        
-        df1 = pd.DataFrame(data=scores, index=range(len(scores)), columns=["полнота", "точность", "отсекающее правило", "функция потерь"])
-        sns.lineplot(x="отсекающее правило", y="точность",
+
+        df1 = pd.DataFrame(data=scores, index=range(len(scores)), columns=["полнота", "точность", "число тестирующих признаков", "функция потерь"])
+        g = sns.lineplot(x="число тестирующих признаков", y="точность",
                  hue="функция потерь",
                  data=df1)
-        plt.savefig(str(number) + 'TablesPlots/scores_prec.png')
+        ax = g.axes
+        ax.set_xticklabels(range(0, 7)) # set new labels
+        plt.savefig(str(number) + 'TablesPlots/scores_prec_variate_test.png')
         plt.close()
         
-        df2 = pd.DataFrame(data=scores, index=range(len(scores)), columns=["полнота", "точность", "отсекающее правило", "функция потерь"])
-        sns.lineplot(x="отсекающее правило", y="полнота",
+        df2 = pd.DataFrame(data=scores, index=range(len(scores)), columns=["полнота", "точность", "число тестирующих признаков", "функция потерь"])
+        g = sns.lineplot(x="число тестирующих признаков", y="полнота",
                  hue="функция потерь",
                  data=df2)
-        plt.savefig(str(number) + 'TablesPlots/scores_rec.png')
+        ax = g.axes
+        ax.set_xticklabels(range(0, 7)) # set new labels
+        plt.savefig(str(number) + 'TablesPlots/scores_rec_variate_test.png')
         plt.close()
 
 

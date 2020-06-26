@@ -1,6 +1,6 @@
 from sklearn.base import TransformerMixin
 
-from measures import GLOB_CR, GLOB_MEASURE
+from .measures import GLOB_CR, GLOB_MEASURE
 
 class UnivariateFilter(TransformerMixin):  # TODO ADD LOGGING
     def __init__(self, measure, cutting_rule):

@@ -72,7 +72,7 @@ def create_subsamples(directory_name, X, y, subsample_size,  number_of_subsample
                 part_y = y[test_index]
                 for i, _ in enumerate(part_x):
                     writer.writerow(np.append(part_x[i], part_y[i]))     
-                    subsamples.append((X[test_index], y[test_index]))
+            subsamples.append((X[test_index], y[test_index]))
     else:
         for file_name in os.listdir(directory_name): # open directory with datasets
             if '.csv' not in file_name: # skip datasets not in csv format

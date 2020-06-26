@@ -3,10 +3,9 @@ from .html_printer import html_print
 import copy
 import random
 from .UnivariateFilter import UnivariateFilter
-import measures
 import heapq
 from sklearn.model_selection import StratifiedShuffleSplit
-from ITMO_FS.filters.univariate.measures import information_gain
+from ITMO_FS.filters.univariate.measures import information_gain, select_k_best
 
 def __load_cfg(file_number):
     with open('experiments.cfg', 'r') as fd:
@@ -25,7 +24,7 @@ def get_top(count_pos, k):
     return np.array(count_top_k, dtype = np.integer)
 
 def select_best(count_pos, k, part_x, part_y, slice_index):
-    univ_filter = UnivariateFilter(information_gain, measures.select_k_best(k))
+    univ_filter = UnivariateFilter(information_gain, select_k_best(k))
     univ_filter.fit(part_x, part_y)
     sf = univ_filter.selected_features
     for f in sf:
